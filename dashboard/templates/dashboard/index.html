@@ -1,0 +1,268 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="bg-background">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrackX — City-Wide ANPR Trajectory & Traffic Analytics Platform</title>
+  <meta name="description" content="Enterprise-grade urban surveillance and AI traffic intelligence command center: ANPR vehicle trajectory tracking, live hotlist alerts, and macro traffic-flow analytics." />
+  <meta name="theme-color" content="#0b0f19" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ HEADER ============================ -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <path d="M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Track<b>X</b></div>
+        <div class="sys-status">
+          <span class="dot dot-green"></span>
+          SYSTEM STATUS: {{ cameras_online }} / {{ cameras_total }} CAMERAS ONLINE &nbsp;|&nbsp; LATENCY: {{ latency }}ms
+        </div>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <div class="search" role="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input type="text" aria-label="Search"
+               placeholder="Search License Plate (e.g. UP 14 AB 1234), Vehicle Model, or Camera ID..." />
+      </div>
+      <div class="micro-filters">
+        <button class="chip"><span class="k">◷</span> Date / Time Range</button>
+        <button class="chip"><span class="k">◈</span> Zone: All Sectors</button>
+        <button class="chip"><span class="k">⚑</span> Security Flag</button>
+      </div>
+    </div>
+
+    <div class="hdr-right">
+      <div class="clock mono" id="clock">--:--:-- IST</div>
+      <button class="icon-btn alarm active" id="alarm-toggle" title="Audio alarm mute toggle" aria-label="Toggle audio alarm">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="alert-bell" title="Emergency alerts" aria-label="Emergency alerts">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+        </svg>
+        <span class="badge">{{ alert_count }}</span>
+      </button>
+      <div class="operator">
+        <span class="avatar">RS</span>
+        <div>
+          <div class="op-name">Ops. R. Sharma</div>
+          <div class="op-role">Command Center · L3</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================ BODY ============================ -->
+  <div class="body">
+
+    <!-- ---------- LEFT SIDEBAR ---------- -->
+    <aside class="col left">
+      <section class="card">
+        <div class="card-head">
+          <div class="card-title"><span class="bar"></span>Target Trajectory Breakdown</div>
+        </div>
+
+        <div class="plate-crop" aria-label="License plate crop">
+          <div class="scan"></div>
+          <span class="corner c1"></span><span class="corner c2"></span>
+          <span class="corner c3"></span><span class="corner c4"></span>
+          <span class="plate-big">{{ target.plate }}</span>
+        </div>
+
+        <div class="ocr-line">
+          <span class="ocr-plate">{{ target.plate }}</span>
+          <span class="conf">CONF {{ target.confidence }}%</span>
+        </div>
+
+        <div class="tags">
+          <span class="tag">{{ target.color }}</span>
+          <span class="tag">{{ target.body }}</span>
+          <span class="tag">{{ target.model }}</span>
+          <span class="tag flag">Owner: {{ target.owner_status }}</span>
+        </div>
+
+        <div class="card-sub" style="margin-bottom:10px;">CHRONOLOGICAL CAMERA HITS</div>
+        <div class="timeline">
+          {% for n in timeline %}
+          <div class="tl-item {% if n.is_last %}last{% endif %}">
+            <span class="tl-node"></span>
+            <div class="tl-top">
+              <span class="tl-time">{{ n.time }} IST</span>
+              <span class="tl-conf">OCR {{ n.confidence }}%</span>
+            </div>
+            <div class="tl-name">{{ n.name }}</div>
+            {% if n.segment %}
+              <div class="tl-seg">Inter-node avg speed <b>{{ n.segment.avg_speed }} km/h</b> · heading {{ n.heading }}</div>
+            {% else %}
+              <div class="tl-seg">Origin detection · {{ n.speed }} km/h · heading {{ n.heading }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div class="card-title crimson"><span class="bar"></span>Real-Time Hotlist &amp; Anomaly Feed</div>
+          <span class="card-sub">LIVE</span>
+        </div>
+        {% for a in hotlist %}
+        <div class="alert {{ a.level }}">
+          <div class="alert-top">
+            <span class="alert-tag">{{ a.tag }}</span>
+            <span class="alert-time">{{ a.time }}</span>
+          </div>
+          <div class="alert-plate">{{ a.plate }}</div>
+          <div class="alert-desc">{{ a.desc }}</div>
+          <div class="alert-cam">{{ a.cam }}</div>
+          <div class="alert-actions">
+            <button class="mini-btn pin">PIN TO MAP</button>
+            <button class="mini-btn danger">DISPATCH PATROL</button>
+          </div>
+        </div>
+        {% endfor %}
+      </section>
+    </aside>
+
+    <!-- ---------- CENTER MAP ---------- -->
+    <main class="map-col">
+      <div id="map" role="application" aria-label="Interactive GIS surveillance map"></div>
+
+      <div class="map-overlay-top">
+        <div class="map-title-badge">
+          <span class="dot dot-green"></span>
+          <div>
+            <div class="t">GIS SURVEILLANCE GRID · SECTOR CENTRAL-DEL</div>
+            <div class="s">Tracking target {{ target.plate }} · 5 node hits</div>
+          </div>
+        </div>
+        <div class="map-controls">
+          <div class="toggle" id="toggle-heat" role="switch" aria-checked="false">
+            <span class="switch"></span> HEATMAP
+          </div>
+          <div class="toggle on" id="toggle-cams" role="switch" aria-checked="true">
+            <span class="switch"></span> CAMERA NODES
+          </div>
+        </div>
+      </div>
+
+      <div class="map-legend">
+        <div class="lh">Traffic Density</div>
+        <div class="legend-row"><span class="swatch" style="background:#00e676"></span> Smooth flow</div>
+        <div class="legend-row"><span class="swatch" style="background:#ffab00"></span> Moderate</div>
+        <div class="legend-row"><span class="swatch" style="background:#ff1744"></span> Heavy congestion</div>
+        <div class="legend-row" style="margin-top:7px;"><span class="swatch" style="background:#00e5ff"></span> Target trajectory</div>
+      </div>
+    </main>
+
+    <!-- ---------- RIGHT SIDEBAR ---------- -->
+    <aside class="col right">
+      <section class="card">
+        <div class="card-head">
+          <div class="card-title"><span class="bar"></span>City Traffic Velocity</div>
+          <span class="card-sub">REALTIME</span>
+        </div>
+        <div class="gauges">
+          <div class="gauge">
+            <div data-gauge data-pct="{{ velocity.avg_speed }}" data-color="#00e5ff"
+                 style="position:relative">
+              <div style="position:absolute;inset:0;display:grid;place-items:center;line-height:1">
+                <div><span class="g-val" style="color:#00e5ff">{{ velocity.avg_speed }}</span><div class="g-unit">km/h</div></div>
+              </div>
+            </div>
+            <div class="g-label">Avg City Speed</div>
+          </div>
+          <div class="gauge">
+            <div data-gauge data-pct="82" data-color="#00e676" style="position:relative">
+              <div style="position:absolute;inset:0;display:grid;place-items:center;line-height:1">
+                <div><span class="g-val" style="color:#00e676">42.8k</span><div class="g-unit">active</div></div>
+              </div>
+            </div>
+            <div class="g-label">Active Vehicles</div>
+          </div>
+          <div class="gauge">
+            <div data-gauge data-pct="{{ velocity.congestion_index }}" data-color="#ffab00" style="position:relative">
+              <div style="position:absolute;inset:0;display:grid;place-items:center;line-height:1">
+                <div><span class="g-val" style="color:#ffab00">{{ velocity.congestion_index }}</span><div class="g-unit">index</div></div>
+              </div>
+            </div>
+            <div class="g-label">Congestion Idx</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div class="card-title"><span class="bar"></span>Origin–Destination Corridors</div>
+          <span class="card-sub">VEH / HR</span>
+        </div>
+        {% for od in od_corridors %}
+        <div class="od-row">
+          <div class="od-top">
+            <span class="od-name">{{ od.name }}</span>
+            <span class="od-vph">{{ od.vph }}</span>
+          </div>
+          <div class="od-track"><div class="od-fill" style="width:{{ od.volume }}%"></div></div>
+        </div>
+        {% endfor %}
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div class="card-title amber"><span class="bar"></span>Bottleneck &amp; Congestion Monitor</div>
+          <span class="card-sub">TOP DELAYS</span>
+        </div>
+        {% for b in bottlenecks %}
+        <div class="bn-row">
+          <div class="bn-name">{{ b.name }}</div>
+          <div class="bn-speed {% if b.drop >= 60 %}sev-hi{% elif b.drop >= 45 %}sev-mid{% else %}sev-lo{% endif %}">{{ b.speed }} km/h</div>
+          <div class="bn-meta">Speed drop {{ b.drop }}%</div>
+          <div class="bn-clear {% if b.drop >= 60 %}sev-hi{% elif b.drop >= 45 %}sev-mid{% else %}sev-lo{% endif %}">ETA clear {{ b.clear }}</div>
+          <div class="bn-bar">
+            <div class="bn-fill {% if b.drop >= 60 %}sev-hi-bg{% elif b.drop >= 45 %}sev-mid-bg{% else %}sev-lo-bg{% endif %}" style="width:{{ b.drop }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </section>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+  window.TRACKX = {
+    trajectory: {{ trajectory_json|safe }},
+    heatmap: {{ heatmap_json|safe }},
+    cameras: {{ cameras_json|safe }},
+    velocity: {{ velocity_json|safe }},
+    plate: "{{ target.plate }}"
+  };
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+</body>
+</html>

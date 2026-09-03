@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+venv/
+.venv/
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Git / VCS
+.git/
+.gitignore
+
+# Environment & secrets
+.env
+.env.production
+opencode.json
+
+# Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Tooling
+.idea/
+.vscode/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker build artifacts (avoid copying host-built images/dist)
+*.whl
