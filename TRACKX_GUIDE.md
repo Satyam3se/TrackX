@@ -1,196 +1,108 @@
-# TrackX — User Guide
+# 🛰️ TrackX — Advanced Urban Vehicle Surveillance System
 
-## What is TrackX?
-
-TrackX is an AI-powered vehicle surveillance system built with Django + React. It uses **YOLOv8** for vehicle detection and **EasyOCR** for license plate recognition, with a real-time OpenStreetMap dashboard and WebSocket alerting.
+TrackX is a professional-grade, AI-powered vehicle tracking and surveillance ecosystem. It integrates real-time Computer Vision (CV), spatial databases, and asynchronous task processing to monitor vehicle movements across a city-wide network of cameras, providing instant alerts for blacklisted vehicles and deep trajectory analytics.
 
 ---
 
-## Architecture Overview (5 Docker containers)
+## 🚀 1. Core Technology Stack
 
-| Container | Role | Port |
-|-----------|------|------|
-| `trackx-db` | PostgreSQL + PostGIS (spatial DB) | 5432 |
-| `trackx-redis` | Redis (Celery broker + WebSocket channel layer) | 6379 |
-| `trackx-web` | Django ASGI (Daphne) — REST + WS API | 8000 |
-| `trackx-celery` | Celery worker (ANPR pipeline) | — |
-| `trackx-frontend` | React SPA via Nginx | 3000 |
+TrackX is built on a modern, distributed architecture designed for scalability and low-latency response.
+
+### 🧠 Artificial Intelligence (The ANPR Engine)
+- **YOLOv8 (Ultralytics):** Used for **Object Detection**. It scans every camera frame to locate the precise bounding box of a vehicle's license plate.
+- **EasyOCR:** Used for **Optical Character Recognition (OCR)**. Once YOLOv8 isolates the plate, EasyOCR transcribes the image into digital text (the license plate number).
+- **Asynchronous Processing (Celery + Redis):** Video processing is computationally expensive. TrackX offloads the AI pipeline to background workers, ensuring the main application remains responsive.
+
+### 🌐 Backend (The Orchestrator)
+- **Django & Django REST Framework (DRF):** Provides a robust API for managing cameras, blacklisted vehicles, and detection logs.
+- **Django Channels (ASGI):** Enables **WebSockets**, allowing the server to "push" critical alerts to the dashboard instantly without the user needing to refresh the page.
+- **PostgreSQL + PostGIS:** A spatial database that stores not just data, but **geography**. It allows TrackX to perform complex spatial queries (e.g., "find all cameras within 1km of this detection").
+
+### 🎨 Frontend (The Command Center)
+- **React.js:** A high-performance UI framework for the real-time dashboard.
+- **MapLibre GL / OpenStreetMap:** Provides an interactive map for visualizing camera nodes, vehicle trajectories, and traffic heatmaps.
+- **Vite:** A lightning-fast build tool and development server.
+
+### 🐳 Infrastructure
+- **Docker & Docker Compose:** Entire system is containerized for "one-click" deployment, ensuring it runs the same on every teammate's machine.
+- **Nginx:** Acts as a reverse proxy to serve the React frontend and route API requests to the Django backend.
 
 ---
 
-## 1. Prerequisites
+## 🛠️ 2. Installation & Setup Guide
 
-- Docker Desktop (or Docker Engine + Docker Compose v2)
-- Git
-- Node.js (for local frontend dev)
+### Prerequisites
+- **Docker Desktop** (Must be installed and running)
+- **Git**
+
+### Step-by-Step Deployment
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/Satyam3se/TrackX2
+   cd track-x
+   ```
+
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   ```
+   *Open `.env` and set a strong `DJANGO_SECRET_KEY`.*
+
+3. **Launch the System**
+   ```bash
+   docker compose up --build -d
+   ```
+
+4. **Initialize the Database**
+   ```bash
+   docker compose exec web python manage.py migrate
+   docker compose exec web python manage.py createsuperuser
+   ```
+
+### Accessing the System
+- **Command Center (UI):** `http://localhost:3000`
+- **Admin Panel (Management):** `http://localhost:3000/admin/`
+- **API Documentation:** `http://localhost:3000/api/v1/`
 
 ---
 
-## 2. Quick Start — Docker (Recommended)
+## 🕹️ 3. How to Use TrackX
 
+### A. Managing the Infrastructure (Admin Panel)
+Log into `http://localhost:3000/admin/` to:
+- **Register Cameras:** Add `CameraNode` entries with their GPS coordinates.
+- **Set the Hotlist:** Add vehicles to `BlacklistedVehicle`. Assign an **Alert Level**:
+    - `CRITICAL`: Immediate dispatch required.
+    - `WARNING`: Review detection.
+    - `INFO`: General analytics.
+- **Review Logs:** Browse every single detection captured by the AI.
+
+### B. Operating the Dashboard
+1. **Real-time Monitoring:** Watch the **Anomaly Feed**. When a blacklisted car is spotted, a toast notification appears. Click **PIN TO MAP** to instantly zoom into that camera's location.
+2. **Vehicle Tracking:** Enter a license plate in the search bar. The map will draw a **Cyan Trajectory Line** showing everywhere that vehicle has been seen, along with a timeline of detections.
+3. **City Analytics:** Check the right sidebar for average city speed and total detection counts to monitor urban traffic flow.
+
+### C. Testing the System (Developer Tools)
+Use the built-in management commands to simulate a live environment:
 ```bash
-# Clone / navigate to project
-cd track-x
-
-# Copy environment template
-cp .env.example .env
-# Edit .env to set DJANGO_SECRET_KEY
-
-# Generate a secret key (run in project root):
-# python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-
-# Build and launch everything
-docker compose up --build -d
-```
-
-### Or use the verify script:
-```bash
-bash scripts/docker_verify.sh
-```
-
-### Access the app:
-- **Dashboard**: `http://localhost:3000`
-- **REST API docs**: `http://localhost:3000/api/v1/`
-- **Django Admin**: `http://localhost:3000/admin/`
-
----
-
-## 3. API Endpoints
-
-All API routes are under `/api/v1/`.
-
-### Cameras
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/cameras/` | List all camera nodes (GeoJSON) |
-| POST | `/api/v1/cameras/` | Create a camera node |
-| GET | `/api/v1/cameras/{id}/` | Retrieve camera |
-| PUT | `/api/v1/cameras/{id}/` | Update camera |
-| DELETE | `/api/v1/cameras/{id}/` | Delete camera |
-
-### Blacklisted Vehicles
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/blacklisted-vehicles/` | List hotlist |
-| POST | `/api/v1/blacklisted-vehicles/` | Add to hotlist |
-| GET | `/api/v1/blacklisted-vehicles/{id}/` | Retrieve |
-| PUT | `/api/v1/blacklisted-vehicles/{id}/` | Update |
-| DELETE | `/api/v1/blacklisted-vehicles/{id}/` | Remove |
-
-### Analytics & Trajectory
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/analytics/summary/` | Fleet health stats |
-| GET | `/api/v1/trajectory/{plate}/?start_date=&end_date=` | GeoJSON trajectory for a plate |
-
-### WebSocket
-Connect to `ws://localhost:3000/ws/alerts/` to receive real-time alerts when a detected plate matches the hotlist.
-
----
-
-## 4. Using the Dashboard (`http://localhost:3000`)
-
-The dashboard has three columns:
-
-### Left Sidebar
-- **Search bar**: Enter a license plate (e.g., `KDA 123A`) → SEARCH to view the vehicle's trajectory on the map + timeline
-- **Target Trajectory**: Shows hit count, distance, and a chronological timeline of camera detections with OCR confidence and inter-node speed
-- **Hotlist & Anomaly Feed**: Live WebSocket alerts — CRITICAL (dispatch), WARNING (review), INFO (analytics). Click **PIN TO MAP** to fly the map to the alert location
-
-### Center Map (OpenStreetMap via MapLibre)
-- Green markers = active camera nodes
-- Cyan line = target vehicle trajectory
-- Heatmap overlay = traffic congestion
-- Click camera markers for popup details
-
-### Right Sidebar
-- **City Traffic Analytics**: Avg speed, cameras online, blacklisted count, detections today
-- **Pinned Alert**: Coordinates of a pinned alert
-
----
-
-## 5. ANPR Pipeline (How it Works)
-
-```
-Camera Frame → Celery Task (process_camera_frame)
-                → YOLOv8 detects vehicle & crops plate
-                → EasyOCR reads license text
-                → DetectionLog saved to PostGIS
-                → If plate matches BlacklistedVehicle → WebSocket alert broadcast
-```
-
-Key files:
-- `anpr_engine/vision.py` — YOLOv8 + EasyOCR model loading and inference
-- `anpr_engine/tasks.py` — Celery task orchestration
-- `anpr_engine/consumers.py` — WebSocket alert consumer
-- `yolov8n.pt` — Pre-trained YOLOv8 nano weights (in repo root)
-
----
-
-## 6. Django Management Commands
-
-```bash
-# Run locally (requires Python + dependencies installed)
-pip install -r requirements.txt
-
-# Database migrations
-python manage.py migrate
-
-# Createsuperuser
-python manage.py createsuperuser
-
-# Run dev server
-python manage.py runserver
-
-# Run Celery worker (separate terminal)
-celery -A trackx worker -l info --concurrency=2
+# Run a full end-to-end demo (Seeds data & triggers alerts)
+docker compose exec web python manage.py run_teacher_demo
 ```
 
 ---
 
-## 7. Frontend Development (Local)
+## ⚙️ 4. The ANPR Pipeline (Technical Flow)
 
-```bash
-cd frontend
-npm install
-
-npm run dev       # Dev server on :5173
-npm run build     # Production build
-```
+1. **Ingestion:** A camera frame is sent to the `process_camera_frame` Celery task.
+2. **Localization:** **YOLOv8** identifies the license plate $\rightarrow$ crops the image.
+3. **Transcription:** **EasyOCR** converts the crop into a string (e.g., "ABC-1234").
+4. **Validation:** The system checks the string against the `BlacklistedVehicle` table in **PostGIS**.
+5. **Notification:** If a match is found, a message is sent via **WebSockets** $\rightarrow$ React Dashboard $\rightarrow$ User Alert.
 
 ---
 
-## 8. Key Models
-
-| Model | Fields | Purpose |
-|-------|--------|---------|
-| `CameraNode` | camera_id, location (Point), location_name, is_active | CCTV camera registration |
-| `DetectionLog` | camera, license_plate, confidence_score, captured_at, crop_image_path, speed_estimate | Historical detection records |
-| `BlacklistedVehicle` | license_plate, owner_name, reason, alert_level (CRITICAL/WARNING/INFO), is_active | Hotlist for alerts |
-
----
-
-## 9. Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DJANGO_SECRET_KEY` | — | **Required** — set a strong value |
-| `DJANGO_DEBUG` | `0` | Set `1` for local debug mode |
-| `POSTGRES_DB` | `trackx_db` | Database name |
-| `POSTGRES_USER` | `postgres` | Database user |
-| `POSTGRES_PASSWORD` | `trackx_pass` | Database password |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
-| `YOLO_WEIGHTS` | `yolov8n.pt` | Path to custom YOLO weights |
-
----
-
-## 10. Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| Container fails to start | Check `.env` has `DJANGO_SECRET_KEY` set |
-| GDAL/GEOS import errors | Ensure `libgdal-dev` and `libgeos-dev` are installed (Linux) |
-| Celery task fails with missing image | Verify `ANPR_CROP_ROOT` env var or `MEDIA_ROOT` exists |
-| WebSocket not connecting | Check `VITE_WS_URL` matches `/ws/alerts/` and Daphne is running |
-| Map tiles not loading | Check your internet connection (tiles load from OpenStreetMap) |
-| Docker build fails | Run `docker compose build` with `--no-cache` |
+## 📈 5. Project Roadmap & Future Scope
+- [ ] **Multi-Feed Support:** Processing multiple RTSP streams concurrently.
+- [ ] **Predictive Analytics:** Predicting the next likely camera a vehicle will hit based on trajectory.
+- [ ] **Advanced Filtering:** Filtering detections by vehicle color or type.
+- [ ] **Mobile Alerts:** Integration with Push Notifications/SMS for critical alerts.
