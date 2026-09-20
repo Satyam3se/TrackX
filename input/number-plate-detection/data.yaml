@@ -1,0 +1,4 @@
+train: C:\Users\harsh\.antigravity-ide\TrackX\yolov5\data_images\train
+val: C:\Users\harsh\.antigravity-ide\TrackX\yolov5\data_images\test
+nc: 1
+names: ['license_plate']
