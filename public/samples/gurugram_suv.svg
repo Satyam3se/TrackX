@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgSuv" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="suvBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#334155" />
+      <stop offset="60%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="plateShine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f8fafc" />
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="400" fill="url(#bgSuv)" />
+  <path d="M 0 310 L 640 310 L 640 400 L 0 400 Z" fill="#090d16" />
+
+  <text x="25" y="35" fill="#f59e0b" font-family="monospace" font-size="12" font-weight="bold">CAM-118 [RAJGHAT FLYOVER] · HIGH-SPEED RADAR · 60 FPS</text>
+  <text x="25" y="55" fill="#94a3b8" font-family="monospace" font-size="11">TARGET IDENT: HYUNDAI CRETA · SPEED EST: 74 KM/H (LIMIT: 50)</text>
+
+  <!-- Shadow -->
+  <ellipse cx="320" cy="335" rx="230" ry="28" fill="#000000" opacity="0.6" />
+
+  <!-- SUV Tall Body -->
+  <path d="M 150 295 C 140 260 145 190 170 160 C 190 130 230 115 280 110 L 360 110 C 410 115 450 130 470 160 C 495 190 500 260 490 295 C 480 315 450 325 320 325 C 190 325 160 315 150 295 Z" fill="url(#suvBody)" stroke="#475569" stroke-width="2.5" />
+
+  <!-- Rear Windshield with spoiler -->
+  <rect x="220" y="105" width="200" height="8" rx="3" fill="#020617" />
+  <path d="M 200 160 C 220 130 250 125 320 125 C 390 125 420 130 440 160 C 445 175 440 185 420 190 L 220 190 C 200 185 195 175 200 160 Z" fill="#090d16" stroke="#1e293b" stroke-width="2" />
+
+  <!-- Connected LED Tail Light Bar -->
+  <rect x="180" y="215" width="280" height="14" rx="4" fill="#dc2626" />
+  <circle cx="320" cy="222" r="5" fill="#991b1b" />
+
+  <!-- Target Box Bounds: x=240, y=248, width=160, height=44 -->
+  <g id="licensePlate">
+    <rect x="240" y="248" width="160" height="44" rx="4" fill="url(#plateShine)" stroke="#020617" stroke-width="2" />
+    <rect x="240" y="248" width="17" height="44" rx="3" fill="#1d4ed8" />
+    <circle cx="248" cy="260" r="3" fill="#fbbf24" />
+    <text x="248" y="278" fill="#ffffff" font-family="sans-serif" font-size="7" font-weight="900" text-anchor="middle">IND</text>
+    <text x="328" y="278" fill="#0f172a" font-family="'Courier New', Courier, monospace" font-size="18" font-weight="900" letter-spacing="3" text-anchor="middle">HR 26 DQ 4412</text>
+  </g>
+</svg>

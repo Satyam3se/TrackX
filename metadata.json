@@ -1,0 +1,8 @@
+{
+  "name": "TrackX",
+  "description": "City-Wide ANPR Trajectory & Traffic Surveillance Platform with real-time hotlist alerts, CCTV node GIS tracking, and macro traffic velocity analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
