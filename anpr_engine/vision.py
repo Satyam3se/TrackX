@@ -131,10 +131,23 @@ def get_plate_detector():
 
 @lru_cache(maxsize=1)
 def get_easyocr_reader():
-    """Return a cached EasyOCR reader restricted to English, CPU-only."""
+    """Return a cached EasyOCR reader.
+    
+    If the environment variable ``EASYOCR_MODEL_PATH`` is set, the reader will
+    attempt to load the custom fine‑tuned weights from that path and run on the
+    GPU. Otherwise it falls back to the default pretrained model on CPU.
+    """
     import easyocr
+    import os
 
-    return easyocr.Reader(['en'], gpu=False, verbose=False)
+    custom_path = os.getenv('EASYOCR_MODEL_PATH')
+    if custom_path and os.path.isfile(custom_path):
+        # Load the custom weights. ``model_path`` forces EasyOCR to use the file.
+        # ``gpu=True`` enables CUDA acceleration.
+        return easyocr.Reader(['en'], gpu=True, model_path=custom_path, verbose=False)
+    else:
+        # Default behaviour – pretrained weights, CPU inference.
+        return easyocr.Reader(['en'], gpu=False, verbose=False)
 
 
 @lru_cache(maxsize=1)
