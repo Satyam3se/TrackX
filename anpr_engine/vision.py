@@ -131,23 +131,51 @@ def get_plate_detector():
 
 @lru_cache(maxsize=1)
 def get_easyocr_reader():
-    """Return a cached EasyOCR reader.
-    
-    If the environment variable ``EASYOCR_MODEL_PATH`` is set, the reader will
-    attempt to load the custom fine‑tuned weights from that path and run on the
-    GPU. Otherwise it falls back to the default pretrained model on CPU.
-    """
+    """Return a cached EasyOCR reader restricted to English, CPU-only."""
     import easyocr
-    import os
 
-    custom_path = os.getenv('EASYOCR_MODEL_PATH')
-    if custom_path and os.path.isfile(custom_path):
-        # Load the custom weights. ``model_path`` forces EasyOCR to use the file.
-        # ``gpu=True`` enables CUDA acceleration.
-        return easyocr.Reader(['en'], gpu=True, model_path=custom_path, verbose=False)
-    else:
-        # Default behaviour – pretrained weights, CPU inference.
-        return easyocr.Reader(['en'], gpu=False, verbose=False)
+    return easyocr.Reader(['en'], gpu=False, verbose=False)
+
+
+@lru_cache(maxsize=1)
+def get_fast_plate_ocr():
+    """Return a cached fast-plate-ocr recognizer (cct-s-v2-global ONNX model).
+
+    Lazy + cached: the model weights (~64MB) are only loaded on first call and
+    reused for every subsequent frame/crop. Returns ``None`` when the package
+    is not installed, the model is missing, or ``ANPR_FAST_OCR=0`` -- callers
+    must fall back to EasyOCR in that case.
+    """
+    if not FAST_OCR:
+        return None
+    try:
+        from fast_plate_ocr import LicensePlateRecognizer
+
+        return LicensePlateRecognizer(
+            hub_ocr_model='cct-s-v2-global-model', device='auto',
+        )
+    except Exception as exc:
+        print(f'[WARN] fast-plate-ocr unavailable, using EasyOCR: {exc}')
+        return None
+
+
+@lru_cache(maxsize=1)
+def get_fast_alpr():
+    """Return a cached fast-alpr plate detector (YOLOv9-t-384 ONNX model).
+
+    Detects plates from 65+ countries (the model most likely to rescue a
+    foreign plate the tuned platevision model never learned). Like
+    ``get_fast_plate_ocr`` this is lazy + optional; ``None`` when unavailable.
+    """
+    if not FAST_DETECTOR:
+        return None
+    try:
+        from fast_alpr.default_detector import DefaultDetector
+
+        return DefaultDetector(conf_thresh=0.25)
+    except Exception as exc:
+        print(f'[WARN] fast-alpr unavailable, skipping extra detection: {exc}')
+        return None
 
 
 @lru_cache(maxsize=1)

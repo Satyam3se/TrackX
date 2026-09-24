@@ -1,6 +1,36 @@
-venv/
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
+
+# Environment variables
+.env
+.env*.local
+
+# Local test media (too large for git)
+testing_dataset/
+testingmodelvideos/
+
+# Common ignores
+node_modules
+.next/
+.DS_Store
+# Python
 __pycache__/
 *.pyc
-venv/
-__pycache__/
-*.pyc
+*.pt
+
+# YOLO/Datasets
+dataset.zip
+dataset_tmp/
+license_plate_dataset/
+runs/
+Videos/
+web_logs.txt
+
+kaggle_dataset/
+lp_dataset2/
+pretrained_weights/
